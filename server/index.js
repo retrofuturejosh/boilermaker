@@ -8,7 +8,7 @@ const passport = require('passport');
 
 const syncPromise = require('./db').syncPromise;
 const db = require('./db').db
-
+const User = require('./db').User
 
 // configure and create our database store to save all session info
 const SequelizeStore = require('connect-session-sequelize')(session.Store);
@@ -22,11 +22,11 @@ app.use(morgan('dev'));
 
 //Creates client session, adds cookie to client, saves session info to Sessions table in database
 app.use(session({
-    secret: process.env.SESSION_SECRET || 'a wildly insecure secret',
-    store: dbStore,
-    resave: false,
-    saveUninitialized: false
-  }));
+  secret: process.env.SESSION_SECRET || 'a wildly insecure secret',
+  store: dbStore,
+  resave: false,
+  saveUninitialized: false
+}));
 
 //body parsing middleware
 app.use(bodyParser.json());
@@ -36,6 +36,20 @@ app.use(bodyParser.urlencoded({ extended: true }));
 //attach passport info to session on req.session
 app.use(passport.initialize());
 app.use(passport.session());
+
+passport.serializeUser((user, done) => {
+  try {
+    done(null, user.id);
+  } catch (err) {
+    done(err);
+  }
+});
+
+passport.deserializeUser((id, done) => {
+  User.findById(id)
+    .then(user => done(null, user))
+    .catch(done);
+});
 
 // you'll of course want static middleware so your browser can request things like your 'bundle.js'
 app.use(express.static(path.join(__dirname, '../public')))
@@ -52,14 +66,14 @@ app.get('*', function (req, res, next) {
 
 //Error handling for ALL server reqs
 app.use(function (err, req, res, next) {
-    console.error(err);
-    console.error(err.stack);
-    res.status(err.status || 500).send(err.message || 'Internal server error.');
-  });
+  console.error(err);
+  console.error(err.stack);
+  res.status(err.status || 500).send(err.message || 'Internal server error.');
+});
 
 
-syncPromise.then(()=>{
-    app.listen(8080, function () {
-        console.log('Example app listening on port 8080, dummies!')
-      })
+syncPromise.then(() => {
+  app.listen(8080, function () {
+    console.log('Example app listening on port 8080, dummies!')
+  })
 })
